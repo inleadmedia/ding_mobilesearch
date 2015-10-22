@@ -1,0 +1,197 @@
+<?php
+
+/**
+ * @file
+ * Mobilesearch logic.
+ */
+
+include_once 'ding_mobilesearch.trigger.inc';
+include_once 'lib/bootstrap.inc';
+include_once 'plugins/rest.inc';
+
+/**
+ * Implements hook_permission().
+ */
+function ding_mobilesearch_permission() {
+  return array(
+    'administer mobilesearch' => array(
+      'title' => t('Administer mobilesearch'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function ding_mobilesearch_menu() {
+  $items = array();
+
+  $items['admin/config/mobilesearch'] = array(
+    'title' => 'Mobilesearch',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer mobilesearch'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/config/mobilesearch/content-export'] = array(
+    'title' => 'Content export',
+    'description' => 'Content exporting settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ding_mobilesearch_settings'),
+    'access arguments' => array('administer mobilesearch'),
+    'file' => 'ding_mobilesearch.admin.inc',
+  );
+
+  $items['admin/config/mobilesearch/content-export/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/config/mobilesearch/content-export/plugin'] = array(
+    'title' => 'Plugins',
+    'description' => 'Set a special configuration options for plugins.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ding_mobilesearch_plugin_settings'),
+    'access arguments' => array('administer mobilesearch'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+    'file' => 'ding_mobilesearch.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function ding_mobilesearch_theme($existing, $type, $theme, $path) {
+  return array(
+    'ding_mobilesearch_types_table' => array(
+      'render element' => 'form',
+      'file' => 'ding_mobilesearch.admin.inc',
+    ),
+    'ding_mobilesearch_menus_table' => array(
+      'render element' => 'form',
+      'file' => 'ding_mobilesearch.admin.inc',
+    ),
+  );
+}
+
+/**
+ * Implements hook_mobilesearch_plugin_info().
+ */
+function ding_mobilesearch_mobilesearch_plugin_info() {
+  return array(
+    'mobilesearch_rest' => array(
+      'title' => t('REST plugin'),
+      'description' => t('Export data to Mongo through REST API.'),
+      'exec_callback' => 'mobilesearch_rest_exec',
+      'config_form_callback' => 'mobilesearch_rest_config_form',
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ding_mobilesearch_form_menu_edit_menu_alter(&$form, &$form_state, $form_id) {
+  $vocabulary = taxonomy_vocabulary_machine_name_load('realm');
+  $tree = taxonomy_get_tree($vocabulary->vid, 0, NULL, TRUE);
+  $realm = array();
+  foreach ($tree as $term) {
+    if (!empty($term->field_agency_id[LANGUAGE_NONE][0]['value'])) {
+      $agency_id = $term->field_agency_id[LANGUAGE_NONE][0]['value'];
+      $realm[$agency_id] = $term->name . ' (' . $agency_id . ')';
+    }
+  }
+  if ($realm) {
+    $menu_name = $form['old_name']['#value'];
+    $form['agency_id'] = array(
+      '#type' => 'radios',
+      '#title' => t('Realm'),
+      '#description' => t('Please specify the realm for this menu.'),
+      '#options' => $realm,
+      '#default_value' => variable_get('mobilesearch_menu_agency_id__' . $menu_name, 0),
+      '#required' => TRUE,
+    );
+    $form['#submit'][] = 'ding_mobilesearch_menu_edit_submit';
+  }
+}
+
+/**
+ * Submit handler for a menu editing form.
+ */
+function ding_mobilesearch_menu_edit_submit($form, &$form_state) {
+  $menu_name = $form_state['values']['menu_name'];
+  variable_set('mobilesearch_menu_agency_id__' . $menu_name, $form_state['values']['agency_id']);
+}
+
+/**
+ * Returns list of a exporting menus with an associations with a plugins.
+ */
+function _ding_mobilesearch_menus() {
+  $result = db_select('menu_custom', 'm')
+    ->fields('m', array('menu_name', 'title'))
+    ->orderBy('m.title')
+    ->execute();
+  $menus = array();
+  $plugin_info = module_invoke_all('mobilesearch_plugin_info');
+  foreach ($result as $row) {
+    $key = 'mobilesearch_menu__' . $row->menu_name;
+    if (variable_get($key, FALSE)) {
+      $plugin = variable_get($key . '__plugin', NULL);
+
+      $menus[$row->menu_name] = $plugin_info[$plugin];
+    }
+  }
+
+  return $menus;
+}
+
+/**
+ * Returns list of a exporting content types with an associations with a plugins.
+ */
+function _ding_mobilesearch_types() {
+  $names = node_type_get_names();
+  $types = array();
+  $plugin_info = module_invoke_all('mobilesearch_plugin_info');
+  foreach ($names as $machine_name => $name) {
+    $key = 'mobilesearch_type__' . $machine_name;
+    if (variable_get($key, FALSE)) {
+      $trigger = variable_get($key . '__trigger', NULL);
+      $plugin = variable_get($key . '__plugin', NULL);
+
+      $types[$machine_name] = $plugin_info[$plugin];
+      $types[$machine_name]['trigger'] = $trigger;
+      $types[$machine_name]['plugin'] = $plugin;
+    }
+  }
+
+  return $types;
+}
+
+/**
+ * Implements hook_mobilesearch_node_export_mapping().
+ */
+function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
+  $mapping = array(
+    'fields' => array(
+      'title' => array(
+        'name' => t('Title'),
+        'value' => $node->title,
+        'attr' => array(),
+      ),
+    ),
+    'taxonomy' => array(),
+  );
+  if (!empty($node->body[LANGUAGE_NONE][0]['value'])) {
+    $mapping['fields']['body'] = array(
+      'name' => t('Body'),
+      'value' => $node->body[LANGUAGE_NONE][0]['value'],
+      'attr' => array(),
+    );
+  }
+  return $mapping;
+}

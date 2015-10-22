@@ -1,0 +1,4 @@
+name = Mobilesearch
+description = Core functionality for content export.
+core = 7.x
+package = Mobilesearch
