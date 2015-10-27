@@ -1,4 +1,6 @@
-name = Mobilesearch
-description = Core functionality for content export.
+name = Ding Mobilesearch
+description = Export functionality for a Ding.
+package = Ding!
 core = 7.x
-package = Mobilesearch
+version = "7.x-1.0"
+configure = admin/config/mobilesearch

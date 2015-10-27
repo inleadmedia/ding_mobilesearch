@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Callbacks for a pushing to Mongo through REST API.
+ */
+
+/**
  * Call a REST service method.
  *
  * @param  string $method
@@ -66,6 +71,14 @@ function mobilesearch_rest_node_agency_diff($node, $original = NULL) {
     'to_delete' => array(),
   );
 
+  if ($ting_agency = variable_get('ting_agency', NULL)) {
+    return array(
+      'to_add' => array($ting_agency),
+      'to_update' => array($ting_agency),
+      'to_delete' => array(),
+    );
+  }
+
   $node_realm = array();
   if (!empty($node->field_realm[LANGUAGE_NONE])) {
     foreach ($node->field_realm[LANGUAGE_NONE] as $row) {
@@ -119,16 +132,52 @@ function mobilesearch_rest_config_form($form, &$form_state) {
     '#default_value' => variable_get('mobilesearch_rest_key', NULL),
     '#required' => TRUE,
   );
+  $form['mobilesearch_rest_node_form_button'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Node form button'),
+    '#default_value' => variable_get('mobilesearch_rest_node_form_button', TRUE),
+    '#description' => t('Display "Save and push to Mongo" button in a node editing form.'),
+  );
   $form['mobilesearch_rest_debug'] = array(
     '#type' => 'checkbox',
     '#title' => t('Debug'),
     '#default_value' => variable_get('mobilesearch_rest_debug', FALSE),
-    '#description' => t('Store debug data in watchdog.')
+    '#description' => t('Store debug data in watchdog.'),
   );
 
   return $form;
 }
 
+/**
+ * Node editing form alter callback.
+ */
+function mobilesearch_rest_node_form(&$form, &$form_state) {
+  if (variable_get('mobilesearch_rest_node_form_button', TRUE)) {
+    $form['actions']['submit_rest'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save and push to Mongo'),
+      '#submit' => array('mobilesearch_rest_node_submit'),
+      '#weight' => 6,
+    );
+  }
+}
+
+/**
+ * Submit handler for a node editing form.
+ */
+function mobilesearch_rest_node_submit($form, &$form_state) {
+  $node = $form_state['node'];
+  $types = _ding_mobilesearch_types();
+  $plugin = $types[$node->type];
+  if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
+    $plugin['exec_callback']('hook_node_update', 'node', $node);
+  }
+  $form_state['redirect'] = 'node/' . $node->nid;
+}
+
+/**
+ * Plugin execute callback.
+ */
 function mobilesearch_rest_exec($op, $entity_type, $entity) {
   // Export menu links.
   if ($entity_type == 'menu_link') {
@@ -158,16 +207,43 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
   elseif ($entity_type == 'node') {
     switch ($op) {
       case 'hook_node_insert':
-        $diff = mobilesearch_rest_node_agency_diff($entity);
+        if ($ting_agency = variable_get('ting_agency', NULL)) {
+          $diff = array(
+            'to_add' => array($ting_agency),
+            'to_update' => array(),
+            'to_delete' => array(),
+          );
+        }
+        else {
+          $diff = mobilesearch_rest_node_agency_diff($entity);
+        }
         break;
       case 'hook_node_update':
-        $original = isset($entity->original) ? $entity->original : NULL;
-        $diff = mobilesearch_rest_node_agency_diff($entity, $original);
+        if ($ting_agency = variable_get('ting_agency', NULL)) {
+          $diff = array(
+            'to_add' => array(),
+            'to_update' => array($ting_agency),
+            'to_delete' => array(),
+          );
+        }
+        else {
+          $original = isset($entity->original) ? $entity->original : NULL;
+          $diff = mobilesearch_rest_node_agency_diff($entity, $original);
+        }
         break;
       case 'hook_node_delete':
-        $original = clone $entity;
-        $entity->field_realm = array();
-        $diff = mobilesearch_rest_node_agency_diff($entity, $original);
+        if ($ting_agency = variable_get('ting_agency', NULL)) {
+          $diff = array(
+            'to_add' => array(),
+            'to_update' => array(),
+            'to_delete' => array($ting_agency),
+          );
+        }
+        else {
+          $original = clone $entity;
+          $entity->field_realm = array();
+          $diff = mobilesearch_rest_node_agency_diff($entity, $original);
+        }
         break;
     }
 

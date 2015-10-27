@@ -5,7 +5,7 @@
  * Mobilesearch logic.
  */
 
-include_once 'ding_mobilesearch.trigger.inc';
+include_once 'includes/trigger.inc';
 include_once 'lib/bootstrap.inc';
 include_once 'plugins/rest.inc';
 
@@ -40,7 +40,7 @@ function ding_mobilesearch_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('ding_mobilesearch_settings'),
     'access arguments' => array('administer mobilesearch'),
-    'file' => 'ding_mobilesearch.admin.inc',
+    'file' => 'includes/admin.inc',
   );
 
   $items['admin/config/mobilesearch/content-export/settings'] = array(
@@ -57,7 +57,7 @@ function ding_mobilesearch_menu() {
     'access arguments' => array('administer mobilesearch'),
     'type' => MENU_LOCAL_TASK,
     'weight' => 1,
-    'file' => 'ding_mobilesearch.admin.inc',
+    'file' => 'includes/admin.inc',
   );
 
   return $items;
@@ -70,11 +70,11 @@ function ding_mobilesearch_theme($existing, $type, $theme, $path) {
   return array(
     'ding_mobilesearch_types_table' => array(
       'render element' => 'form',
-      'file' => 'ding_mobilesearch.admin.inc',
+      'file' => 'includes/admin.inc',
     ),
     'ding_mobilesearch_menus_table' => array(
       'render element' => 'form',
-      'file' => 'ding_mobilesearch.admin.inc',
+      'file' => 'includes/admin.inc',
     ),
   );
 }
@@ -89,6 +89,7 @@ function ding_mobilesearch_mobilesearch_plugin_info() {
       'description' => t('Export data to Mongo through REST API.'),
       'exec_callback' => 'mobilesearch_rest_exec',
       'config_form_callback' => 'mobilesearch_rest_config_form',
+      'node_form_callback' => 'mobilesearch_rest_node_form',
     ),
   );
 }
@@ -117,6 +118,18 @@ function ding_mobilesearch_form_menu_edit_menu_alter(&$form, &$form_state, $form
       '#required' => TRUE,
     );
     $form['#submit'][] = 'ding_mobilesearch_menu_edit_submit';
+  }
+}
+
+/**
+ * Implements hook_form_BASE_ID_alter().
+ */
+function ding_mobilesearch_form_node_form_alter(&$form, &$form_state, $form_id) {
+  $plugin_info = module_invoke_all('mobilesearch_plugin_info');
+  foreach ($plugin_info as $row) {
+    if (!empty($row['node_form_callback']) && function_exists($row['node_form_callback'])) {
+      $row['node_form_callback']($form, $form_state);
+    }
   }
 }
 
@@ -194,4 +207,20 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     );
   }
   return $mapping;
+}
+
+/**
+ * Implements hook_action_info().
+ *
+ * Registers custom VBO actions as Drupal actions.
+ */
+function ding_mobilesearch_action_info() {
+  return array(
+    'views_bulk_operations_push_mongo_rest' => array(
+      'type' => 'entity',
+      'label' => t('Push to Mongo'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+    ),
+  );
 }

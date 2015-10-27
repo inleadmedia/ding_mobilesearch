@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Stores a triggers for exporting content.
+ */
+
+/**
  * Implements hook_menu_link_insert().
  */
 function ding_mobilesearch_menu_link_insert($link) {
@@ -122,5 +127,23 @@ function ding_mobilesearch_workflow($op, $id, $new_sid, $entity, $force, $entity
         }
       }
     }
+  }
+}
+
+/**
+ * Implementation of push to mongo action.
+ */
+function views_bulk_operations_push_mongo_rest($entity, $context) {
+  $types = _ding_mobilesearch_types();
+  if (!in_array($entity->type, array_keys($types), TRUE)) {
+    return;
+  }
+
+  $plugin = $types[$entity->type];
+  if ($plugin['trigger'] != 'hook_node_insert') {
+    return;
+  }
+  if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
+    $plugin['exec_callback']('hook_node_update', 'node', $entity);
   }
 }

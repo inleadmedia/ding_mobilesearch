@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Mobilesearch administration and plugins settings UI.
+ */
+
+/**
  * Content exporting settings form.
  */
 function ding_mobilesearch_settings($form, &$form_state) {
