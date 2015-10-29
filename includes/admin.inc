@@ -23,7 +23,7 @@ function ding_mobilesearch_settings($form, &$form_state) {
   $names = node_type_get_names();
 
   $base_trigger = array(
-    'hook_node_insert' => t('Node creation'),
+    'hook_node_insert' => t('Node hooks (insert, update, delete)'),
   );
   $module_enabled = system_list('module_enabled');
   $workflow_enabled = !empty($module_enabled['workflownode']);

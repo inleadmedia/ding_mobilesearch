@@ -266,7 +266,10 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
     }
     foreach ($diff['to_update'] as $agency_id) {
       $request_body['agency'] = $agency_id;
-      mobilesearch_rest_service_call('updateContent', $request_body);
+      $response = mobilesearch_rest_service_call('addContent', $request_body);
+      if (!$response || (is_object($response['response']) && $response['response']->status == FALSE)) {
+        mobilesearch_rest_service_call('updateContent', $request_body);
+      }
     }
     foreach ($diff['to_delete'] as $agency_id) {
       $request_body['agency'] = $agency_id;
