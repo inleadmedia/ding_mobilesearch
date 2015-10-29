@@ -26,15 +26,7 @@ function ding_mobilesearch_permission() {
 function ding_mobilesearch_menu() {
   $items = array();
 
-  $items['admin/config/mobilesearch'] = array(
-    'title' => 'Mobilesearch',
-    'page callback' => 'system_admin_menu_block_page',
-    'access arguments' => array('administer mobilesearch'),
-    'file' => 'system.admin.inc',
-    'file path' => drupal_get_path('module', 'system'),
-  );
-
-  $items['admin/config/mobilesearch/content-export'] = array(
+  $items['admin/config/ding/mobilesearch/content-export'] = array(
     'title' => 'Content export',
     'description' => 'Content exporting settings.',
     'page callback' => 'drupal_get_form',
@@ -43,13 +35,13 @@ function ding_mobilesearch_menu() {
     'file' => 'includes/admin.inc',
   );
 
-  $items['admin/config/mobilesearch/content-export/settings'] = array(
+  $items['admin/config/ding/mobilesearch/content-export/settings'] = array(
     'title' => 'Settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
 
-  $items['admin/config/mobilesearch/content-export/plugin'] = array(
+  $items['admin/config/ding/mobilesearch/content-export/plugin'] = array(
     'title' => 'Plugins',
     'description' => 'Set a special configuration options for plugins.',
     'page callback' => 'drupal_get_form',
@@ -221,6 +213,25 @@ function ding_mobilesearch_action_info() {
       'label' => t('Push to Mongo'),
       'configurable' => FALSE,
       'triggers' => array('any'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_ding_install_tasks().
+ */
+function ding_mobilesearch_ding_install_tasks() {
+  // module_load_include('inc', 'ding_mobilesearch', 'includes/admin');
+  return array(
+    'ding_mobilesearch_settings' => array(
+      'display_name' => st('Mobilesearch mapping settings'),
+      'type' => 'form',
+      'file' => drupal_get_path('module', 'ding_mobilesearch') . '/includes/admin.inc',
+    ),
+    'ding_mobilesearch_plugin_settings' => array(
+      'display_name' => st('Mobilesearch plugins settings'),
+      'type' => 'form',
+      'file' => drupal_get_path('module', 'ding_mobilesearch') . '/includes/admin.inc',
     ),
   );
 }

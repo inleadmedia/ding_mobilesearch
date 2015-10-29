@@ -3,4 +3,4 @@ description = Export functionality for a Ding.
 package = Ding!
 core = 7.x
 version = "7.x-1.0"
-configure = admin/config/mobilesearch
+configure = admin/config/ding/mobilesearch/content-export

@@ -74,7 +74,7 @@ function ding_mobilesearch_node_insert($node) {
 function ding_mobilesearch_node_update($node) {
   $types = _ding_mobilesearch_types();
   if (!in_array($node->type, array_keys($types), TRUE)) {
-    return;
+    // return;
   }
 
   $plugin = $types[$node->type];
