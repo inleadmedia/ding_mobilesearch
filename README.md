@@ -1,11 +1,11 @@
 # Ding Mobilesearch
-This module allows export of content to to remote storage.
-By default uses connectivity to a REST API, but can be expanded with plugins
-to support other various connector. (see `hook_mobilesearch_plugin_info()`).
+This module allows export of content to remote storage.
+By default uses connectivity to a REST API, but can be expanded with custom plugins
+to support other connectors. (see `hook_mobilesearch_plugin_info()`).
 
 ## Installation
 No special installation steps are required, simply enable the module and set
-export configuration (see Configuration sesction).
+export configuration (see `Configuration` section of this file).
 Also supports (and provides a necessary features) workflow and workbench modules
 in the case if they exist and enabled in the system.
 
