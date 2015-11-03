@@ -191,12 +191,81 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     ),
     'taxonomy' => array(),
   );
-  if (!empty($node->body[LANGUAGE_NONE][0]['value'])) {
-    $mapping['fields']['body'] = array(
-      'name' => t('Body'),
-      'value' => $node->body[LANGUAGE_NONE][0]['value'],
-      'attr' => array(),
-    );
+  $instances = field_info_instances('node', $node->type);
+  foreach ($instances as $machine_name => $field) {
+    switch ($field['widget']['type']) {
+      case 'text':
+      case 'text_long':
+      case 'text_textarea':
+      case 'text_with_summary':
+        $items = field_get_items('node', $node, $machine_name);
+        $mapping['fields'][$machine_name] = array(
+          'name' => $field['label'],
+          'value' => array(),
+          'attr' => array(),
+        );
+        foreach ($items as $item) {
+          $mapping['fields'][$machine_name]['value'][] = $item['value'];
+        }
+        if (count($mapping['fields'][$machine_name]['value']) == 1) {
+          $mapping['fields'][$machine_name]['value'] = reset($mapping['fields'][$machine_name]['value']);
+        }
+        break;
+
+      case 'image':
+      case 'media_generic':
+        $items = field_get_items('node', $node, $machine_name);
+        if ($items) {
+          $mapping['fields'][$machine_name] = array(
+            'name' => $field['label'],
+            'value' => array(
+            ),
+          );
+          foreach ($items as $delta => $row) {
+            $file = file_load($row['fid']);
+            $mapping['fields'][$machine_name]['value'][$delta] = base64_encode(file_get_contents($file->uri));
+            $mapping['fields'][$machine_name]['attr'][$delta] = $file->filemime;
+          }
+        }
+        break;
+
+      case 'options_select':
+      case 'options_buttons':
+      case 'options_autocomplete':
+      case 'taxonomy_term_reference':
+        $vocabulary_machine_name = NULL;
+        $info = field_info_field($machine_name);
+        if (!empty($info['settings']['allowed_values']) && is_array($info['settings']['allowed_values'])) {
+          $settings = reset($info['settings']['allowed_values']);
+          if (!empty($settings['vocabulary'])) {
+            $vocabulary_machine_name = $settings['vocabulary'];
+          }
+        }
+        if ($vocabulary_machine_name) {
+          $vocabulary = taxonomy_vocabulary_machine_name_load($vocabulary_machine_name);
+          $vocabulary = $vocabulary->name;
+        }
+        else {
+          $vocabulary = $field['label'];
+        }
+        $items = field_get_items('node', $node, $machine_name);
+        $mapping['taxonomy'][$machine_name] = array(
+          'name' => $vocabulary,
+          'terms' => array(),
+        );
+        if (is_array($items)) {
+          foreach ($items as $row) {
+            if (!empty($row['tid'])) {
+              $term = taxonomy_term_load($row['tid']);
+              $mapping['taxonomy'][$machine_name]['terms'][] = $term->name;
+            }
+          }
+        }
+        if (empty($mapping['taxonomy'][$machine_name]['terms'])) {
+          unset($mapping['taxonomy'][$machine_name]);
+        }
+        break;
+    }
   }
   return $mapping;
 }
