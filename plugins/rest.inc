@@ -64,19 +64,26 @@ function mobilesearch_rest_service_call($method, $body = array()) {
  *  ]
  *  </code>
  */
-function mobilesearch_rest_node_agency_diff($node, $original = NULL) {
+function mobilesearch_rest_node_agency_diff($node, $original = NULL, $op = NULL) {
   $result = array(
     'to_add' => array(),
     'to_update' => array(),
     'to_delete' => array(),
   );
 
-  if ($ting_agency = variable_get('ting_agency', NULL)) {
-    return array(
-      'to_add' => array($ting_agency),
-      'to_update' => array($ting_agency),
-      'to_delete' => array(),
-    );
+  $agency_id = variable_get('mobilesearch_rest_agency_id', '100000');
+  if ($agency_id && $op) {
+    switch ($op) {
+      case 'hook_node_insert':
+        $result['to_add'][] = $agency_id;
+        return $result;
+      case 'hook_node_update':
+        $result['to_update'][] = $agency_id;
+        return $result;
+      case 'hook_node_delete':
+        $result['to_delete'][] = $agency_id;
+        return $result;
+    }
   }
 
   $node_realm = array();
@@ -152,11 +159,15 @@ function mobilesearch_rest_config_form($form, &$form_state) {
  * Node editing form alter callback.
  */
 function mobilesearch_rest_node_form(&$form, &$form_state) {
-  if (variable_get('mobilesearch_rest_node_form_button', TRUE)) {
+  $types = _ding_mobilesearch_types();
+  if (variable_get('mobilesearch_rest_node_form_button', TRUE) && in_array($form['type']['#value'], array_keys($types), TRUE)) {
     $form['actions']['submit_rest'] = array(
       '#type' => 'submit',
       '#value' => t('Save and push to Mongo'),
-      '#submit' => array('mobilesearch_rest_node_submit'),
+      '#submit' => array(
+        'node_form_submit',
+        'mobilesearch_rest_node_submit',
+      ),
       '#weight' => 6,
     );
   }
@@ -207,43 +218,16 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
   elseif ($entity_type == 'node') {
     switch ($op) {
       case 'hook_node_insert':
-        if ($ting_agency = variable_get('ting_agency', NULL)) {
-          $diff = array(
-            'to_add' => array($ting_agency),
-            'to_update' => array(),
-            'to_delete' => array(),
-          );
-        }
-        else {
-          $diff = mobilesearch_rest_node_agency_diff($entity);
-        }
+        $diff = mobilesearch_rest_node_agency_diff($entity, NULL, $op);
         break;
       case 'hook_node_update':
-        if ($ting_agency = variable_get('ting_agency', NULL)) {
-          $diff = array(
-            'to_add' => array(),
-            'to_update' => array($ting_agency),
-            'to_delete' => array(),
-          );
-        }
-        else {
-          $original = isset($entity->original) ? $entity->original : NULL;
-          $diff = mobilesearch_rest_node_agency_diff($entity, $original);
-        }
+        $original = isset($entity->original) ? $entity->original : NULL;
+        $diff = mobilesearch_rest_node_agency_diff($entity, $original, $op);
         break;
       case 'hook_node_delete':
-        if ($ting_agency = variable_get('ting_agency', NULL)) {
-          $diff = array(
-            'to_add' => array(),
-            'to_update' => array(),
-            'to_delete' => array($ting_agency),
-          );
-        }
-        else {
-          $original = clone $entity;
-          $entity->field_realm = array();
-          $diff = mobilesearch_rest_node_agency_diff($entity, $original);
-        }
+        $original = clone $entity;
+        $entity->field_realm = array();
+        $diff = mobilesearch_rest_node_agency_diff($entity, $original, $op);
         break;
     }
 
