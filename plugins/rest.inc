@@ -124,13 +124,21 @@ function mobilesearch_rest_config_form($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Service URL'),
     '#default_value' => variable_get('mobilesearch_rest_url', ''),
-    '#description' => t('URL to service such as "http://example.com:1337".'),
+    '#description' => t('URL to service (trailing slash needed).'),
     '#required' => TRUE,
   );
+  $ting_agency = variable_get('ting_agency', '100000');
+  $agency_id = variable_get('mobilesearch_rest_agency_id', '');
+  if ($ting_agency != $agency_id) {
+    drupal_set_message(t('T!NG agency ID %ting_agency does not match REST plugin agency ID %agency_id', array(
+      '%ting_agency' => $ting_agency,
+      '%agency_id' => $agency_id,
+    )), 'warning');
+  }
   $form['mobilesearch_rest_agency_id'] = array(
     '#type' => 'textfield',
     '#title' => t('Agency ID'),
-    '#default_value' => variable_get('mobilesearch_rest_agency_id', '100000'),
+    '#default_value' => variable_get('mobilesearch_rest_agency_id', $ting_agency),
     '#required' => TRUE,
   );
   $form['mobilesearch_rest_key'] = array(
@@ -138,12 +146,6 @@ function mobilesearch_rest_config_form($form, &$form_state) {
     '#title' => t('Key'),
     '#default_value' => variable_get('mobilesearch_rest_key', NULL),
     '#required' => TRUE,
-  );
-  $form['mobilesearch_rest_node_form_button'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Node form button'),
-    '#default_value' => variable_get('mobilesearch_rest_node_form_button', TRUE),
-    '#description' => t('Display "Save and push to Mongo" button in a node editing form.'),
   );
   $form['mobilesearch_rest_debug'] = array(
     '#type' => 'checkbox',
@@ -160,16 +162,8 @@ function mobilesearch_rest_config_form($form, &$form_state) {
  */
 function mobilesearch_rest_node_form(&$form, &$form_state) {
   $types = _ding_mobilesearch_types();
-  if (variable_get('mobilesearch_rest_node_form_button', TRUE) && in_array($form['type']['#value'], array_keys($types), TRUE)) {
-    $form['actions']['submit_rest'] = array(
-      '#type' => 'submit',
-      '#value' => t('Save and push to Mongo'),
-      '#submit' => array(
-        'node_form_submit',
-        'mobilesearch_rest_node_submit',
-      ),
-      '#weight' => 6,
-    );
+  if (in_array($form['type']['#value'], array_keys($types), TRUE)) {
+    $form['actions']['submit']['#submit'][] = 'mobilesearch_rest_node_submit';
   }
 }
 
@@ -177,13 +171,18 @@ function mobilesearch_rest_node_form(&$form, &$form_state) {
  * Submit handler for a node editing form.
  */
 function mobilesearch_rest_node_submit($form, &$form_state) {
-  $node = $form_state['node'];
-  $types = _ding_mobilesearch_types();
-  $plugin = $types[$node->type];
-  if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
-    $plugin['exec_callback']('hook_node_update', 'node', $node);
+  if (!empty($form_state['values']['flag'])) {
+    $flags = $form_state['values']['flag'];
+    if (isset($flags['push_to_mongo'])) {
+      $node = $form_state['node'];
+      $types = _ding_mobilesearch_types();
+      $plugin = $types[$node->type];
+      if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
+        $op = $flags['push_to_mongo'] ? 'hook_node_update' : 'hook_node_delete';
+        $plugin['exec_callback']($op, 'node', $node);
+      }
+    }
   }
-  $form_state['redirect'] = 'node/' . $node->nid;
 }
 
 /**
