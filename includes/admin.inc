@@ -55,7 +55,7 @@ function ding_mobilesearch_settings($form, &$form_state) {
     $form['export']['types']['rows'][$machine_name]['type'] = array(
       '#type' => 'checkbox',
       '#title' => $name,
-      '#default_value' => variable_get($key, FALSE),
+      '#default_value' => variable_get($key, $machine_name == 'ding_news'),
     );
     $form['export']['types']['rows'][$machine_name]['trigger'] = array(
       '#type' => 'radios',
