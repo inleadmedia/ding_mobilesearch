@@ -164,7 +164,7 @@ function _ding_mobilesearch_types() {
   $plugin_info = module_invoke_all('mobilesearch_plugin_info');
   foreach ($names as $machine_name => $name) {
     $key = 'mobilesearch_type__' . $machine_name;
-    if (variable_get($key, FALSE)) {
+    if (variable_get($key, $key == 'mobilesearch_type__ding_news')) {
       $trigger = variable_get($key . '__trigger', NULL);
       $plugin = variable_get($key . '__plugin', NULL);
 
