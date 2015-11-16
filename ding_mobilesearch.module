@@ -144,6 +144,9 @@ function _ding_mobilesearch_menus() {
   $menus = array();
   $plugin_info = module_invoke_all('mobilesearch_plugin_info');
   foreach ($result as $row) {
+    if (preg_match('/^menu-og/', $row->menu_name)) {
+      continue;
+    }
     $key = 'mobilesearch_menu__' . $row->menu_name;
     if (variable_get($key, FALSE)) {
       $plugin = variable_get($key . '__plugin', NULL);

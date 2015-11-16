@@ -80,6 +80,9 @@ function ding_mobilesearch_settings($form, &$form_state) {
     ->execute();
   $menus = array();
   foreach ($result as $row) {
+    if (preg_match('/^menu-og/', $row->menu_name)) {
+      continue;
+    }
     $key = 'mobilesearch_menu__' . $row->menu_name;
     $form['export']['menus']['rows'][$row->menu_name]['menu'] = array(
       '#type' => 'checkbox',
