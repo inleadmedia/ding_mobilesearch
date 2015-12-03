@@ -175,11 +175,16 @@ function mobilesearch_rest_node_submit($form, &$form_state) {
     $flags = $form_state['values']['flag'];
     if (isset($flags['push_to_mongo'])) {
       $node = $form_state['node'];
+      $is_new = is_null($form_state['values']['vid']);
       $types = _ding_mobilesearch_types();
       $plugin = $types[$node->type];
       if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
-        $op = $flags['push_to_mongo'] ? 'hook_node_update' : 'hook_node_delete';
-        $plugin['exec_callback']($op, 'node', $node);
+        if (!$is_new) {
+          $plugin['exec_callback']('hook_node_delete', 'node', $node);
+        }
+        if ($flags['push_to_mongo']) {
+          $plugin['exec_callback']('hook_node_insert', 'node', $node);
+        }
       }
     }
   }
