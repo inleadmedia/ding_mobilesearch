@@ -51,6 +51,24 @@ function ding_mobilesearch_menu_link_delete($link) {
 }
 
 /**
+ * Implements hook_node_delete().
+ */
+function ding_mobilesearch_node_delete($node) {
+  $types = _ding_mobilesearch_types();
+  if (!in_array($node->type, array_keys($types), TRUE)) {
+    return;
+  }
+
+  $plugin = $types[$node->type];
+  if ($plugin['trigger'] != 'hook_node_insert') {
+    return;
+  }
+  if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
+    $plugin['exec_callback']('hook_node_delete', 'node', $node);
+  }
+}
+
+/**
  * Implements hook_workflow().
  */
 function ding_mobilesearch_workflow($op, $id, $new_sid, $entity, $force, $entity_type = '', $field_name = '', $transition = NULL, $user = NULL) {
