@@ -312,15 +312,14 @@ function ding_mobilesearch_ding_install_tasks() {
  * Implements hook_flag_default_flags().
  */
 function ding_mobilesearch_flag_default_flags() {
+  $types = node_type_get_names();
   $flags = array();
   // Exported flag: "Push to Mongo".
   $flags['push_to_mongo'] = array(
     'content_type' => 'node',
     'title' => 'Push to Mongo',
-    'global' => 0,
-    'types' => array(
-      0 => 'ding_news',
-    ),
+    'global' => 1,
+    'types' => array_keys($types),
     'flag_short' => 'Push to Mongo',
     'flag_long' => '',
     'flag_message' => '',
@@ -348,5 +347,10 @@ function ding_mobilesearch_flag_default_flags() {
     'i18n' => 0,
     'api_version' => 2,
   );
+
+  $flag = flag_get_flag('push_to_mongo');
+  $flag->types = $flags['push_to_mongo']['types'];
+  $flag->save();
+
   return $flags;
 }
