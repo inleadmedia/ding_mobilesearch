@@ -1,0 +1,46 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the MobileSearch module.
+ */
+
+/**
+ * Push Library nodes to Mongo.
+ */
+function ding_mobilesearch_update_7000(&$sandbox) {
+  $ret = array();
+
+  $key = 'mobilesearch_type__ding_library';
+  variable_set($key, TRUE);
+  variable_set($key . '__trigger', 'hook_node_insert');
+  variable_set($key . '__plugin', 'mobilesearch_rest');
+
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['max'] = db_query("SELECT COUNT(nid) FROM {node} WHERE type='ding_library' AND status=1")->fetchField();
+    $sandbox['messages'] = array();
+    $sandbox['current_node'] = -1;
+  }
+
+  $limit = 10;
+  $result = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->orderBy('n.nid', 'ASC')
+    ->condition('n.type', 'ding_library')
+    ->condition('n.status', NODE_PUBLISHED)
+    ->condition('n.nid', $sandbox['current_node'], '>')
+    ->extend('PagerDefault')
+    ->limit($limit)
+    ->execute();
+  foreach ($result as $row) {
+    $node = node_load($row->nid);
+    mobilesearch_rest_exec('hook_node_delete', 'node', $node);
+    mobilesearch_rest_exec('hook_node_insert', 'node', $node);
+
+    $sandbox['progress']++;
+    $sandbox['current_node'] = $row->nid;
+  }
+
+  $sandbox['#finished'] = ($sandbox['progress'] >= $sandbox['max']) ? TRUE : ($sandbox['progress'] / $sandbox['max']);
+}
