@@ -357,9 +357,9 @@ function ding_mobilesearch_flag_default_flags() {
     'api_version' => 2,
   );
 
-  $flag = flag_get_flag('push_to_mongo');
-  $flag->types = $flags['push_to_mongo']['types'];
-  $flag->save();
+  // $flag = flag_get_flag('push_to_mongo');
+  // $flag->types = $flags['push_to_mongo']['types'];
+  // $flag->save();
 
   return $flags;
 }
