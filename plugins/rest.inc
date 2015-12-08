@@ -158,6 +158,17 @@ function mobilesearch_rest_config_form($form, &$form_state) {
 }
 
 /**
+ * Validate handler for REST plugin configuration form.
+ */
+function mobilesearch_rest_config_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  $test_result = mobilesearch_rest_test_service($values);
+  if (!$test_result) {
+    form_set_error('mobilesearch_rest_url', t('Problem connecting to the service. Please check your settings.'));
+  }
+}
+
+/**
  * Node editing form alter callback.
  */
 function mobilesearch_rest_node_form(&$form, &$form_state) {
@@ -175,11 +186,32 @@ function mobilesearch_rest_node_submit($form, &$form_state) {
     $flags = $form_state['values']['flag'];
     if (isset($flags['push_to_mongo'])) {
       $node = $form_state['node'];
+
+      $config = array(
+        'mobilesearch_rest_url' => variable_get('mobilesearch_rest_url', ''),
+        'mobilesearch_rest_agency_id' => variable_get('mobilesearch_rest_agency_id', '100000'),
+        'mobilesearch_rest_key' => variable_get('mobilesearch_rest_key', NULL),
+      );
+      $test_result = mobilesearch_rest_test_service($config);
+      if (!$test_result) {
+        drupal_set_message(t('Problem connecting to the REST service. We have unchecked your "Push to Mongo" flag. Please check your !settings.',
+          array('!settings' => l(t('settings'), 'admin/config/mobilesearch/content-export/plugin'))), 'warning');
+        global $user;
+        $flag = flag_get_flag('push_to_mongo');
+        $flag->remember_content($node->nid, $node);
+        flag('unflag', 'push_to_mongo', $node->nid, $user);
+      }
+
+      $is_new = is_null($form_state['values']['vid']);
       $types = _ding_mobilesearch_types();
       $plugin = $types[$node->type];
       if (!empty($plugin['exec_callback']) && function_exists($plugin['exec_callback'])) {
-        $op = $flags['push_to_mongo'] ? 'hook_node_update' : 'hook_node_delete';
-        $plugin['exec_callback']($op, 'node', $node);
+        if (!$is_new) {
+          $plugin['exec_callback']('hook_node_delete', 'node', $node);
+        }
+        if ($flags['push_to_mongo']) {
+          $plugin['exec_callback']('hook_node_insert', 'node', $node);
+        }
       }
     }
   }
@@ -239,7 +271,6 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
     if (isset($mapping['special']) && is_array($mapping['special'])) {
       $request_body = array_merge($request_body, $mapping['special']);
     }
-    $request_body['list'] = 0;
     $request_body['fields'] = $mapping['fields'];
     $request_body['taxonomy'] = $mapping['taxonomy'];
 
@@ -275,7 +306,6 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
         if (isset($mapping['special']) && is_array($mapping['special'])) {
           $request_body = array_merge($request_body, $mapping['special']);
         }
-        $request_body['list'] = 0;
         $request_body['fields'] = $mapping['fields'];
         $request_body['taxonomy'] = $mapping['taxonomy'];
 
@@ -283,4 +313,53 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
       }
     }
   }
+}
+
+/**
+ * Test service connection.
+ * @param array $config
+ *   An array with the following keys:
+ *   - mobilesearch_rest_url: Url to REST service.
+ *   - mobilesearch_rest_agency_id: Agency ID.
+ *   - mobilesearch_rest_key: Service key.
+ * @return boolean
+ */
+function mobilesearch_rest_test_service($config = array()) {
+  $service_url = $config['mobilesearch_rest_url'];
+  $agency_id = $config['mobilesearch_rest_agency_id'];
+  $key = $config['mobilesearch_rest_key'];
+
+  $instance = new \NationalStorageComponent\NationalStorage($service_url);
+
+  $body = array(
+    'nid' => -1,
+    'agency' => $agency_id,
+    'type' => 'ding_news',
+  );
+  $request = array(
+    'credentials' => array(
+      'agencyId' => $agency_id,
+      'key' => sha1($agency_id . $key),
+    ),
+    'body' => $body,
+  );
+  $method = 'addContent';
+  if (!method_exists($instance, $method)) {
+    return FALSE;
+  }
+  try {
+    /**
+     * @todo Should write special method for testing the service.
+     * Current way (add test record in Content and then delete it) is excess.
+     */
+    $instance->$method($request);
+    $response = $instance->getResponse();
+    $method = 'deleteContent';
+    $instance->$method($request);
+  }
+  catch (Exception $e) {
+    watchdog_exception('rest_service_test', $e);
+    return FALSE;
+  }
+  return $response['status'];
 }

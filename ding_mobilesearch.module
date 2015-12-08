@@ -81,6 +81,7 @@ function ding_mobilesearch_mobilesearch_plugin_info() {
       'description' => t('Export data to Mongo through REST API.'),
       'exec_callback' => 'mobilesearch_rest_exec',
       'config_form_callback' => 'mobilesearch_rest_config_form',
+      'config_form_validate' => 'mobilesearch_rest_config_form_validate',
       'node_form_callback' => 'mobilesearch_rest_node_form',
     ),
   );
@@ -144,6 +145,9 @@ function _ding_mobilesearch_menus() {
   $menus = array();
   $plugin_info = module_invoke_all('mobilesearch_plugin_info');
   foreach ($result as $row) {
+    if (preg_match('/^menu-og/', $row->menu_name)) {
+      continue;
+    }
     $key = 'mobilesearch_menu__' . $row->menu_name;
     if (variable_get($key, FALSE)) {
       $plugin = variable_get($key . '__plugin', NULL);
@@ -164,7 +168,7 @@ function _ding_mobilesearch_types() {
   $plugin_info = module_invoke_all('mobilesearch_plugin_info');
   foreach ($names as $machine_name => $name) {
     $key = 'mobilesearch_type__' . $machine_name;
-    if (variable_get($key, FALSE)) {
+    if (variable_get($key, $key == 'mobilesearch_type__ding_news')) {
       $trigger = variable_get($key . '__trigger', NULL);
       $plugin = variable_get($key . '__plugin', NULL);
 
@@ -267,6 +271,33 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
         break;
     }
   }
+
+  $result = db_select('opening_hours', 'oh')
+    ->fields('oh')
+    ->condition('oh.nid', $node->nid)
+    ->execute();
+  foreach ($result as $row) {
+    $mapping['fields']['opening_hours'][] = (array) $row;
+  }
+
+  // Content type specific fields.
+  switch ($node->type) {
+    case 'ding_event':
+      $items = field_get_items('node', $node, 'field_ding_event_date');
+      if (is_array($items) && !empty($items)) {
+        $item = reset($items);
+        $mapping['fields']['field_ding_event_date'] = array(
+          'name' => 'Event date',
+          'value' => array(
+            'from' => $item['value'],
+            'to' => $item['value2'],
+          ),
+          'attr' => array(),
+        );
+      }
+      break;
+  }
+
   return $mapping;
 }
 
@@ -309,15 +340,14 @@ function ding_mobilesearch_ding_install_tasks() {
  * Implements hook_flag_default_flags().
  */
 function ding_mobilesearch_flag_default_flags() {
+  $types = node_type_get_names();
   $flags = array();
   // Exported flag: "Push to Mongo".
   $flags['push_to_mongo'] = array(
     'content_type' => 'node',
     'title' => 'Push to Mongo',
-    'global' => 0,
-    'types' => array(
-      0 => 'ding_news',
-    ),
+    'global' => 1,
+    'types' => array_keys($types),
     'flag_short' => 'Push to Mongo',
     'flag_long' => '',
     'flag_message' => '',
@@ -345,5 +375,6 @@ function ding_mobilesearch_flag_default_flags() {
     'i18n' => 0,
     'api_version' => 2,
   );
+
   return $flags;
 }

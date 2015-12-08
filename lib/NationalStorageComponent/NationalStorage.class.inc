@@ -65,14 +65,11 @@ class NationalStorage extends \NationalStorageComponent\GenericStorage {
    * @see \NationalStorageComponent\GenericStorage::processResponse()
    */
   protected function processResponse($response) {
-    // Converts JSON data to array representation and assembles specific
-    // response array.
-    // @todo
-    // This is be modified when response is sane.
     $decoded_response = json_decode($response);
+
     return array(
-      'status' => TRUE,
-      'response' => $decoded_response,
+      'status' => isset($decoded_response->status) ? $decoded_response->status : FALSE,
+      'response' => isset($decoded_response->message) ? $decoded_response->message : (string) $response,
     );
   }
 }
