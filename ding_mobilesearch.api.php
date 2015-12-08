@@ -10,6 +10,7 @@
  *   - description: Long description of plugin.
  *   - exec_callback: Execution callback.
  *   - config_form_callback: A configuration form for a plugin.
+ *   - config_form_validate: Validate handler for the configuration form.
  *   - config_form_submit: Submit handler for the configuration form.
  *
  * @see hook_mobilesearch_plugin_config()
@@ -21,6 +22,7 @@ function hook_mobilesearch_plugin_info() {
       'description' => t('Plugin description.'),
       'exec_callback' => 'mobilesearch_example_plugin_exec',
       'config_form_callback' => 'mobilesearch_example_plugin_config_form',
+      'config_form_validate' => 'mobilesearch_example_plugin_config_form_validate',
       'config_form_submit' => 'mobilesearch_example_plugin_config_form_submit',
     )
   );

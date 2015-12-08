@@ -158,6 +158,17 @@ function mobilesearch_rest_config_form($form, &$form_state) {
 }
 
 /**
+ * Validate handler for REST plugin configuration form.
+ */
+function mobilesearch_rest_config_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  $test_result = mobilesearch_rest_test_service($values);
+  if (!$test_result) {
+    form_set_error('mobilesearch_rest_url', t('Problem connecting to the service. Please check your settings.'));
+  }
+}
+
+/**
  * Node editing form alter callback.
  */
 function mobilesearch_rest_node_form(&$form, &$form_state) {
@@ -175,6 +186,21 @@ function mobilesearch_rest_node_submit($form, &$form_state) {
     $flags = $form_state['values']['flag'];
     if (isset($flags['push_to_mongo'])) {
       $node = $form_state['node'];
+
+      $config = array(
+        'mobilesearch_rest_url' => variable_get('mobilesearch_rest_url', ''),
+        'mobilesearch_rest_agency_id' => variable_get('mobilesearch_rest_agency_id', '100000'),
+        'mobilesearch_rest_key' => variable_get('mobilesearch_rest_key', NULL),
+      );
+      $test_result = mobilesearch_rest_test_service($config);
+      if (!$test_result) {
+        drupal_set_message(t('Problem connecting to the service. We have unchecked your flag. Please check your settings.'), 'warning');
+        global $user;
+        $flag = flag_get_flag('push_to_mongo');
+        $flag->remember_content($node->nid, $node);
+        flag('unflag', 'push_to_mongo', $node->nid, $user);
+      }
+
       $is_new = is_null($form_state['values']['vid']);
       $types = _ding_mobilesearch_types();
       $plugin = $types[$node->type];
@@ -244,7 +270,6 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
     if (isset($mapping['special']) && is_array($mapping['special'])) {
       $request_body = array_merge($request_body, $mapping['special']);
     }
-    $request_body['list'] = 0;
     $request_body['fields'] = $mapping['fields'];
     $request_body['taxonomy'] = $mapping['taxonomy'];
 
@@ -280,7 +305,6 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
         if (isset($mapping['special']) && is_array($mapping['special'])) {
           $request_body = array_merge($request_body, $mapping['special']);
         }
-        $request_body['list'] = 0;
         $request_body['fields'] = $mapping['fields'];
         $request_body['taxonomy'] = $mapping['taxonomy'];
 
@@ -288,4 +312,46 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
       }
     }
   }
+}
+
+/**
+ * Test service connection.
+ */
+function mobilesearch_rest_test_service($config = array()) {
+  $service_url = $config['mobilesearch_rest_url'];
+  $agency_id = $config['mobilesearch_rest_agency_id'];
+  $key = $config['mobilesearch_rest_key'];
+
+  $instance = new \NationalStorageComponent\NationalStorage($service_url);
+
+  $body = array(
+    'nid' => -1,
+    'agency' => $agency_id,
+    'type' => 'ding_news',
+  );
+  $request = array(
+    'credentials' => array(
+      'agencyId' => $agency_id,
+      'key' => sha1($agency_id . $key),
+    ),
+    'body' => $body,
+  );
+  $method = 'addContent';
+  if (!method_exists($instance, $method)) {
+    return FALSE;
+  }
+  try {
+    $instance->$method($request);
+    $response = $instance->getResponse();
+    $method = 'deleteContent';
+    $instance->$method($request);
+  }
+  catch (Exception $e) {
+    return FALSE;
+  }
+  if (is_array($response) && isset($response['status']) && isset($response['response'])) {
+    return $response['status'];
+  }
+
+  return FALSE;
 }
