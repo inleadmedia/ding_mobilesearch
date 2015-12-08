@@ -194,7 +194,8 @@ function mobilesearch_rest_node_submit($form, &$form_state) {
       );
       $test_result = mobilesearch_rest_test_service($config);
       if (!$test_result) {
-        drupal_set_message(t('Problem connecting to the service. We have unchecked your flag. Please check your settings.'), 'warning');
+        drupal_set_message(t('Problem connecting to the REST service. We have unchecked your "Push to Mongo" flag. Please check your !settings.',
+          array('!settings' => l(t('settings'), 'admin/config/mobilesearch/content-export/plugin'))), 'warning');
         global $user;
         $flag = flag_get_flag('push_to_mongo');
         $flag->remember_content($node->nid, $node);
@@ -316,6 +317,12 @@ function mobilesearch_rest_exec($op, $entity_type, $entity) {
 
 /**
  * Test service connection.
+ * @param array $config
+ *   An array with the following keys:
+ *   - mobilesearch_rest_url: Url to REST service.
+ *   - mobilesearch_rest_agency_id: Agency ID.
+ *   - mobilesearch_rest_key: Service key.
+ * @return boolean
  */
 function mobilesearch_rest_test_service($config = array()) {
   $service_url = $config['mobilesearch_rest_url'];
@@ -341,17 +348,18 @@ function mobilesearch_rest_test_service($config = array()) {
     return FALSE;
   }
   try {
+    /**
+     * @todo Should write special method for testing the service.
+     * Current way (add test record in Content and then delete it) is excess.
+     */
     $instance->$method($request);
     $response = $instance->getResponse();
     $method = 'deleteContent';
     $instance->$method($request);
   }
   catch (Exception $e) {
+    watchdog_exception('rest_service_test', $e);
     return FALSE;
   }
-  if (is_array($response) && isset($response['status']) && isset($response['response'])) {
-    return $response['status'];
-  }
-
-  return FALSE;
+  return $response['status'];
 }
