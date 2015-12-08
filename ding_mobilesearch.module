@@ -81,6 +81,7 @@ function ding_mobilesearch_mobilesearch_plugin_info() {
       'description' => t('Export data to Mongo through REST API.'),
       'exec_callback' => 'mobilesearch_rest_exec',
       'config_form_callback' => 'mobilesearch_rest_config_form',
+      'config_form_validate' => 'mobilesearch_rest_config_form_validate',
       'node_form_callback' => 'mobilesearch_rest_node_form',
     ),
   );
@@ -277,6 +278,24 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     ->execute();
   foreach ($result as $row) {
     $mapping['fields']['opening_hours'][] = (array) $row;
+  }
+
+  // Content type specific fields.
+  switch ($node->type) {
+    case 'ding_event':
+      $items = field_get_items('node', $node, 'field_ding_event_date');
+      if (is_array($items) && !empty($items)) {
+        $item = reset($items);
+        $mapping['fields']['field_ding_event_date'] = array(
+          'name' => 'Event date',
+          'value' => array(
+            'from' => $item['value'],
+            'to' => $item['value2'],
+          ),
+          'attr' => array(),
+        );
+      }
+      break;
   }
 
   return $mapping;

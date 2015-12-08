@@ -222,6 +222,9 @@ function ding_mobilesearch_plugin_settings($form, &$form_state) {
       );
       $form['plugin__' . $plugin] += $config_form_func($form['plugin__' . $plugin], $form_state);
     }
+    if (!empty($info['config_form_validate']) && function_exists($info['config_form_validate'])) {
+      $form['#validate'][] = $info['config_form_validate'];
+    }
     if (!empty($info['config_form_submit']) && function_exists($info['config_form_submit'])) {
       $form['#submit'][] = $info['config_form_submit'];
     }
