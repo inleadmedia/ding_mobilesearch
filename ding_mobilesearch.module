@@ -238,7 +238,7 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
                 if (is_array($json) && !empty($json[0][0]['fid'])) {
                   $fid = $json[0][0]['fid'];
                   $file = file_load($fid);
-                  if (is_object($file)) {
+                  if (is_object($file) && $file->type == 'image') {
                     $base64 = base64_encode(file_get_contents($file->uri));
                     $render = "<img src=\"data:{$file->filemime};base64,{$base64}\" alt=\"\" />";
                     $item['value'] = str_replace($value, $render, $item['value']);
