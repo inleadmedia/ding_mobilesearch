@@ -185,11 +185,32 @@ function _ding_mobilesearch_types() {
  * Implements hook_mobilesearch_node_export_mapping().
  */
 function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
+  $account = user_load($node->uid);
   $mapping = array(
     'fields' => array(
       'title' => array(
         'name' => t('Title'),
         'value' => $node->title,
+        'attr' => array(),
+      ),
+      'author' => array(
+        'name' => t('Author'),
+        'value' => $account->name,
+        'attr' => array(),
+      ),
+      'created' => array(
+        'name' => t('Created'),
+        'value' => $node->created,
+        'attr' => array(),
+      ),
+      'changed' => array(
+        'name' => t('Updated'),
+        'value' => $node->changed,
+        'attr' => array(),
+      ),
+      'status' => array(
+        'name' => t('Status'),
+        'value' => $node->status,
         'attr' => array(),
       ),
     ),
@@ -202,6 +223,7 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
       case 'text_long':
       case 'text_textarea':
       case 'text_with_summary':
+      case 'number':
         $items = field_get_items('node', $node, $machine_name);
         $mapping['fields'][$machine_name] = array(
           'name' => $field['label'],
@@ -209,6 +231,22 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
           'attr' => array(),
         );
         foreach ($items as $item) {
+          if (preg_match_all('/(\[\[\{.*\}\]\])/', $item['value'], $matches, PREG_SET_ORDER)) {
+            if (!empty($matches[0])) {
+              foreach ($matches[0] as $key => $value) {
+                $json = drupal_json_decode($value);
+                if (is_array($json) && !empty($json[0][0]['fid'])) {
+                  $fid = $json[0][0]['fid'];
+                  $file = file_load($fid);
+                  if (is_object($file) && $file->type == 'image') {
+                    $base64 = base64_encode(file_get_contents($file->uri));
+                    $render = "<img src=\"data:{$file->filemime};base64,{$base64}\" alt=\"\" />";
+                    $item['value'] = str_replace($value, $render, $item['value']);
+                  }
+                }
+              }
+            }
+          }
           $mapping['fields'][$machine_name]['value'][] = $item['value'];
         }
         if (count($mapping['fields'][$machine_name]['value']) == 1) {
@@ -267,6 +305,38 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
         }
         if (empty($mapping['taxonomy'][$machine_name]['terms'])) {
           unset($mapping['taxonomy'][$machine_name]);
+        }
+        break;
+
+      case 'ting_reference_advanced':
+        $items = field_get_items('node', $node, $machine_name);
+        $mapping['fields'][$machine_name] = array(
+          'name' => $field['label'],
+          'value' => array(),
+          'attr' => array(),
+        );
+        foreach ($items as $item) {
+          $mapping['fields'][$machine_name]['value'][] = $item['ting_object_id'];
+        }
+        if (count($mapping['fields'][$machine_name]['value']) == 1) {
+          $mapping['fields'][$machine_name]['value'] = reset($mapping['fields'][$machine_name]['value']);
+        }
+        break;
+
+      case 'addressfield_standard':
+        $items = field_get_items('node', $node, $machine_name);
+        foreach ($items as $ikey => $row) {
+          foreach ($row as $key => $value) {
+            if ($key == 'element_key') {
+              continue;
+            }
+            $mapping['fields'][$machine_name . '__' . $key] = array(
+              'name' => $field['label'] . ' (' . str_replace('_', ' ', $key) . ')',
+              'value' => array(),
+              'attr' => array(),
+            );
+            $mapping['fields'][$machine_name . '__' . $key]['value'][$ikey] = $value;
+          }
         }
         break;
     }
