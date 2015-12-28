@@ -168,7 +168,7 @@ function _ding_mobilesearch_types() {
   $plugin_info = module_invoke_all('mobilesearch_plugin_info');
   foreach ($names as $machine_name => $name) {
     $key = 'mobilesearch_type__' . $machine_name;
-    if (variable_get($key, $key == 'mobilesearch_type__ding_news')) {
+    if (variable_get($key, FALSE)) {
       $trigger = variable_get($key . '__trigger', NULL);
       $plugin = variable_get($key . '__plugin', NULL);
 
@@ -342,12 +342,15 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     }
   }
 
-  $result = db_select('opening_hours', 'oh')
-    ->fields('oh')
-    ->condition('oh.nid', $node->nid)
-    ->execute();
-  foreach ($result as $row) {
-    $mapping['fields']['opening_hours'][] = (array) $row;
+  $module_enabled = system_list('module_enabled');
+  if (isset($module_enabled['opening_hours'])) {
+    $result = db_select('opening_hours', 'oh')
+      ->fields('oh')
+      ->condition('oh.nid', $node->nid)
+      ->execute();
+    foreach ($result as $row) {
+      $mapping['fields']['opening_hours'][] = (array) $row;
+    }
   }
 
   // Content type specific fields.

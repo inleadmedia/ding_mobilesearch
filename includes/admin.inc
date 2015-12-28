@@ -55,7 +55,7 @@ function ding_mobilesearch_settings($form, &$form_state) {
     $form['export']['types']['rows'][$machine_name]['type'] = array(
       '#type' => 'checkbox',
       '#title' => $name,
-      '#default_value' => variable_get($key, $machine_name == 'ding_news'),
+      '#default_value' => variable_get($key, FALSE),
     );
     $form['export']['types']['rows'][$machine_name]['trigger'] = array(
       '#type' => 'radios',
@@ -109,6 +109,28 @@ function ding_mobilesearch_settings($form, &$form_state) {
  */
 function ding_mobilesearch_settings_submit($form, &$form_state) {
   $types = $form_state['values']['types']['rows'];
+
+  // Assing CT's with flag (if possible).
+  $module_enabled = system_list('module_enabled');
+  if (isset($module_enabled['flag'])) {
+    $flag = flag_get_flag('push_to_mongo');
+    if ($flag !== FALSE) {
+      db_delete('flag_types')
+        ->condition('fid', $flag->fid)
+        ->execute();
+      foreach ($types as $machine_name => $row) {
+        if ($row['type']) {
+          db_insert('flag_types')
+            ->fields(array(
+              'fid' => $flag->fid, 'type' => $machine_name
+            ))
+            ->execute();
+        }
+      }
+    }
+  }
+
+  // Save CT's settings.
   foreach ($types as $machine_name => $row) {
     $key = 'mobilesearch_type__' . $machine_name;
     variable_set($key, $row['type']);
@@ -116,6 +138,7 @@ function ding_mobilesearch_settings_submit($form, &$form_state) {
     variable_set($key . '__plugin', $row['plugin']);
   }
 
+  // Save menus settings.
   $menus = $form_state['values']['menus']['rows'];
   foreach ($menus as $machine_name => $row) {
     $key = 'mobilesearch_menu__' . $machine_name;
