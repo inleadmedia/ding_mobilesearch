@@ -221,6 +221,7 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     switch ($field['widget']['type']) {
       case 'text':
       case 'text_long':
+      case 'text_textfield':
       case 'text_textarea':
       case 'text_with_summary':
       case 'number':
@@ -251,6 +252,18 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
         }
         if (count($mapping['fields'][$machine_name]['value']) == 1) {
           $mapping['fields'][$machine_name]['value'] = reset($mapping['fields'][$machine_name]['value']);
+        }
+        break;
+
+      case 'email_textfield':
+        $items = field_get_items('node', $node, $machine_name);
+        if (is_array($items) && !empty($items)) {
+          $item = reset($items);
+          $mapping['fields'][$machine_name] = array(
+            'name' => $field['label'],
+            'value' => array($item['email']),
+            'attr' => array(),
+          );
         }
         break;
 
@@ -306,6 +319,17 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
         if (empty($mapping['taxonomy'][$machine_name]['terms'])) {
           unset($mapping['taxonomy'][$machine_name]);
         }
+
+        if ($info['type'] == 'entityreference') {
+          $mapping['fields'][$machine_name] = array(
+            'name' => $field['label'],
+            'value' => array(),
+            'attr' => array(),
+          );
+          foreach ($items as $item) {
+            $mapping['fields'][$machine_name]['value'][] = $item['target_id'];
+          }
+        }
         break;
 
       case 'ting_reference_advanced':
@@ -353,6 +377,7 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
     }
   }
 
+  $tag_field = NULL;
   // Content type specific fields.
   switch ($node->type) {
     case 'ding_event':
@@ -368,7 +393,30 @@ function ding_mobilesearch_mobilesearch_node_export_mapping($node) {
           'attr' => array(),
         );
       }
+      $tag_field = 'field_ding_event_tags';
       break;
+
+    case 'ding_news':
+      $tag_field = 'field_ding_news_tags';
+      break;
+
+    case 'ding_page':
+      $tag_field = 'field_ding_page_tags';
+      break;
+  }
+
+  if ($tag_field) {
+    $items = field_get_items('node', $node, $tag_field);
+    if (is_array($items) && !empty($items)) {
+      $mapping['fields'][$tag_field] = array(
+        'name' => 'Tags',
+        'value' => array(),
+        'attr' => array(),
+      );
+      foreach ($items as $item) {
+        $mapping['fields'][$tag_field]['value'][] = $item['name'];
+      }
+    }
   }
 
   return $mapping;
